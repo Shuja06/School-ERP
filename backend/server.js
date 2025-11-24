@@ -42,6 +42,8 @@ app.use('/api/v1/fees', require('./routes/feeRoutes'));
 app.use('/api/v1/expenses', require('./routes/expenseRoutes'));
 app.use('/api/v1/payroll', require('./routes/payrollRoutes'));
 app.use('/api/v1/reports', require('./routes/reportRoutes'));
+app.use('/api/v1/users', require('./routes/userRoutes'));         
+app.use('/api/v1/settings', require('./routes/settingsRoutes')); 
 
 // 404
 app.use((req, res) => {
