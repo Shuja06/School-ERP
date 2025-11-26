@@ -148,8 +148,8 @@ const Payroll = () => {
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text("SCHOOL ERP SYSTEM", 105, 28, { align: "center" });
-    doc.text("123 Education Street, Knowledge City", 105, 34, { align: "center" });
+    doc.text("IDEAL SCHOOL KUMTA", 105, 28, { align: "center" });
+    doc.text("123 Knowledge Park, Education District, Main Highway", 105, 34, { align: "center" });
     
     // Line
     doc.setLineWidth(0.5);

@@ -36,8 +36,8 @@ interface Payment {
 const Billing = () => {
   // Cast data to Payment[] to ensure type safety
   const { data: rawPayments, isLoading } = useFeePayments();
-  const payments = (rawPayments || []) as Payment[]; 
-  
+  const payments = (rawPayments || []) as Payment[];
+
   const { data: students = [] } = useStudents();
   const createPayment = useCreateFeePayment();
   const deletePayment = useDeleteFeePayment();
@@ -45,11 +45,11 @@ const Billing = () => {
   const [open, setOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  
+
   // Typed state for selected payment
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  
+
   const [exportFilters, setExportFilters] = useState({
     startDate: "",
     endDate: "",
@@ -57,7 +57,7 @@ const Billing = () => {
     paymentMethod: "",
     feeType: ""
   });
-  
+
   const [formData, setFormData] = useState({
     student_id: "",
     amount: "",
@@ -77,8 +77,8 @@ const Billing = () => {
       if (!dateStr) return false;
       const paymentDate = new Date(dateStr);
       const now = new Date();
-      return paymentDate.getMonth() === now.getMonth() && 
-             paymentDate.getFullYear() === now.getFullYear();
+      return paymentDate.getMonth() === now.getMonth() &&
+        paymentDate.getFullYear() === now.getFullYear();
     }).length;
 
     return {
@@ -95,10 +95,10 @@ const Billing = () => {
     const receiptNum = payment.receipt_number?.toLowerCase() || '';
     const feeType = payment.fee_type?.toLowerCase() || '';
     const search = searchTerm.toLowerCase();
-    
-    return studentName.includes(search) || 
-           receiptNum.includes(search) || 
-           feeType.includes(search);
+
+    return studentName.includes(search) ||
+      receiptNum.includes(search) ||
+      feeType.includes(search);
   });
 
   const resetForm = () => {
@@ -114,7 +114,7 @@ const Billing = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const selectedStudent = students.find(s => s.id === formData.student_id);
       const payload = {
@@ -138,69 +138,69 @@ const Billing = () => {
 
   const handleDownloadReceipt = (payment: Payment) => {
     const doc = new jsPDF();
-    
+
     // School Header
     doc.setFontSize(20);
-    doc.setFont("helvetica", "bold");
-    doc.text("SCHOOL ERP SYSTEM", 105, 20, { align: "center" });
-    
+    doc.setFont("helvetica", "bold");       
+    doc.text("IDEAL SCHOOL KUMTA", 105, 20, { align: "center" });
+
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text("123 Education Street, Knowledge City", 105, 28, { align: "center" });
-    doc.text("Phone: +91 1234567890 | Email: info@school.com", 105, 34, { align: "center" });
-    
+    doc.text("IDEAL SCHOOL KUMTA", 105, 28, { align: "center" });
+    doc.text("Phone: +91 1234567890 | Email: admin@school.com", 105, 34, { align: "center" });
+
     // Line separator
     doc.setLineWidth(0.5);
     doc.line(20, 40, 190, 40);
-    
+
     // Receipt Title
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.text("FEE RECEIPT", 105, 50, { align: "center" });
-    
+
     // Receipt Details
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
-    
+
     const startY = 65;
     const lineHeight = 8;
     const dateStr = payment.payment_date || payment.created_at || new Date().toISOString();
-    
+
     // Left Column
     doc.setFont("helvetica", "bold");
     doc.text("Receipt No:", 20, startY);
     doc.setFont("helvetica", "normal");
     doc.text(payment.receipt_number || '-', 60, startY);
-    
+
     doc.setFont("helvetica", "bold");
     doc.text("Date:", 20, startY + lineHeight);
     doc.setFont("helvetica", "normal");
     doc.text(new Date(dateStr).toLocaleDateString(), 60, startY + lineHeight);
-    
+
     doc.setFont("helvetica", "bold");
     doc.text("Academic Year:", 20, startY + lineHeight * 2);
     doc.setFont("helvetica", "normal");
     doc.text(payment.academic_year || '-', 60, startY + lineHeight * 2);
-    
+
     // Right Column
     doc.setFont("helvetica", "bold");
     doc.text("Student Name:", 110, startY);
     doc.setFont("helvetica", "normal");
     doc.text(payment.students?.full_name || 'N/A', 150, startY);
-    
+
     doc.setFont("helvetica", "bold");
     doc.text("Class:", 110, startY + lineHeight);
     doc.setFont("helvetica", "normal");
     doc.text(payment.class || payment.students?.class || '-', 150, startY + lineHeight);
-    
+
     doc.setFont("helvetica", "bold");
     doc.text("Section:", 110, startY + lineHeight * 2);
     doc.setFont("helvetica", "normal");
     doc.text(payment.students?.section || '-', 150, startY + lineHeight * 2);
-    
+
     // Payment Details Table
     const tableStartY = startY + lineHeight * 4;
-    
+
     // Table Header
     doc.setFillColor(59, 130, 246);
     doc.rect(20, tableStartY, 170, 10, "F");
@@ -208,40 +208,40 @@ const Billing = () => {
     doc.setFont("helvetica", "bold");
     doc.text("Description", 25, tableStartY + 7);
     doc.text("Amount", 160, tableStartY + 7);
-    
+
     // Table Content
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
     const contentY = tableStartY + 17;
     doc.text(payment.fee_type, 25, contentY);
     doc.text(`₹${Number(payment.amount).toLocaleString()}`, 160, contentY);
-    
+
     // Total
     doc.setFont("helvetica", "bold");
     doc.text("Total Amount:", 120, contentY + 15);
     doc.text(`₹${Number(payment.amount).toLocaleString()}`, 160, contentY + 15);
-    
+
     // Payment Method
     const paymentInfoY = contentY + 30;
     doc.setFont("helvetica", "bold");
     doc.text("Payment Method:", 20, paymentInfoY);
     doc.setFont("helvetica", "normal");
     doc.text(payment.payment_method, 60, paymentInfoY);
-    
+
     // Status Badge
     doc.setFillColor(34, 197, 94);
     doc.roundedRect(20, paymentInfoY + 10, 30, 8, 2, 2, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(10);
     doc.text("PAID", 35, paymentInfoY + 15.5, { align: "center" });
-    
+
     // Footer
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(9);
     doc.setFont("helvetica", "italic");
     doc.text("This is a computer generated receipt. No signature required.", 105, 270, { align: "center" });
     doc.text("Thank you for your payment!", 105, 280, { align: "center" });
-    
+
     // Save PDF
     const fileName = `Receipt_${payment.receipt_number}_${payment.students?.full_name || 'Student'}.pdf`;
     doc.save(fileName);
@@ -271,19 +271,19 @@ const Billing = () => {
     }
 
     if (exportFilters.class) {
-      filteredData = filteredData.filter(p => 
+      filteredData = filteredData.filter(p =>
         (p.class || p.students?.class) === exportFilters.class
       );
     }
 
     if (exportFilters.paymentMethod) {
-      filteredData = filteredData.filter(p => 
+      filteredData = filteredData.filter(p =>
         p.payment_method === exportFilters.paymentMethod
       );
     }
 
     if (exportFilters.feeType) {
-      filteredData = filteredData.filter(p => 
+      filteredData = filteredData.filter(p =>
         p.fee_type.toLowerCase().includes(exportFilters.feeType.toLowerCase())
       );
     }
@@ -305,7 +305,7 @@ const Billing = () => {
     // Calculate summary statistics
     const totalAmount = filteredData.reduce((sum, p) => sum + Number(p.amount || 0), 0);
     const avgAmount = filteredData.length > 0 ? totalAmount / filteredData.length : 0;
-    
+
     // Payment method breakdown
     const methodBreakdown = filteredData.reduce((acc, p) => {
       acc[p.payment_method] = (acc[p.payment_method] || 0) + Number(p.amount);
@@ -365,7 +365,7 @@ const Billing = () => {
     const dateRange = exportFilters.startDate && exportFilters.endDate
       ? `_${new Date(exportFilters.startDate).toLocaleDateString().replace(/\//g, '-')}_to_${new Date(exportFilters.endDate).toLocaleDateString().replace(/\//g, '-')}`
       : `_${new Date().toLocaleDateString().replace(/\//g, '-')}`;
-    
+
     const filename = `Payment_Report${dateRange}.xlsx`;
 
     // Download file
@@ -525,26 +525,26 @@ const Billing = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             title="View Receipt"
                             onClick={() => handleViewReceipt(payment)}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             title="Download Receipt"
                             onClick={() => handleDownloadReceipt(payment)}
                           >
                             <Download className="h-4 w-4" />
                           </Button>
                           {/* ADDED: Delete Button */}
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             title="Delete Payment"
                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
                             onClick={() => handleDelete(payment.id)}
@@ -578,8 +578,8 @@ const Billing = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="student_id">Student *</Label>
-              <Select 
-                value={formData.student_id} 
+              <Select
+                value={formData.student_id}
                 onValueChange={(value) => setFormData({ ...formData, student_id: value })}
                 required
               >
@@ -595,7 +595,7 @@ const Billing = () => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="fee_type">Fee Type *</Label>
               <Input
@@ -606,7 +606,7 @@ const Billing = () => {
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="amount">Amount *</Label>
               <Input
@@ -618,11 +618,11 @@ const Billing = () => {
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="payment_method">Payment Method *</Label>
-              <Select 
-                value={formData.payment_method} 
+              <Select
+                value={formData.payment_method}
                 onValueChange={(value) => setFormData({ ...formData, payment_method: value })}
               >
                 <SelectTrigger>
@@ -637,7 +637,7 @@ const Billing = () => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="receipt_number">Receipt Number *</Label>
               <Input
@@ -648,7 +648,7 @@ const Billing = () => {
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="academic_year">Academic Year *</Label>
               <Input
@@ -659,7 +659,7 @@ const Billing = () => {
                 required
               />
             </div>
-            
+
             <div className="flex gap-2 justify-end">
               <Button type="button" variant="outline" onClick={() => {
                 setOpen(false);
@@ -681,14 +681,18 @@ const Billing = () => {
           <DialogHeader>
             <DialogTitle>Fee Receipt</DialogTitle>
           </DialogHeader>
-          
+
           {selectedPayment && (
             <div className="space-y-6 p-6 border rounded-lg bg-white" id="receipt-content">
               {/* School Header */}
-              <div className="text-center border-b pb-4">
-                <h2 className="text-2xl font-bold text-primary">SCHOOL ERP SYSTEM</h2>
-                <p className="text-sm text-muted-foreground">123 Education Street, Knowledge City</p>
-                <p className="text-sm text-muted-foreground">Phone: +91 1234567890 | Email: info@school.com</p>
+              <div className="flex items-center justify-between">
+                <img src="/public/logo.png" width={120} alt="" />
+
+                <div className="text-center border-b pb-4">
+                  <h2 className="text-2xl font-bold text-primary">IDEAL SCHOOL KUMTA</h2>
+                  <p className="text-sm text-muted-foreground">123 Knowledge Park, Education District, Main Highway</p>
+                  <p className="text-sm text-muted-foreground">Phone: +91 1234567890 | Email: admin@school.com</p>
+                </div>
               </div>
 
               {/* Receipt Title */}
@@ -785,7 +789,7 @@ const Billing = () => {
             <DialogTitle>Export Payment Report</DialogTitle>
             <DialogDescription>Select filters to customize your report</DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

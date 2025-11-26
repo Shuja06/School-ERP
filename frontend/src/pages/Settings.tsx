@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Building, Bell, Shield, Users, HardDrive } from "lucide-react";
+import { Building, Bell, Users } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
@@ -34,17 +34,6 @@ interface NotificationSettings {
   payment_reminders: boolean;
 }
 
-interface SecuritySettings {
-  two_factor_auth: boolean;
-  audit_logging: boolean;
-  auto_logout: boolean;
-}
-
-interface DataSettings {
-  auto_backup: boolean;
-  last_backup: string;
-}
-
 const Settings = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
@@ -64,17 +53,6 @@ const Settings = () => {
     sms_enabled: true,
     whatsapp_enabled: false,
     payment_reminders: true
-  });
-  
-  const [security, setSecurity] = useState<SecuritySettings>({
-    two_factor_auth: false,
-    audit_logging: true,
-    auto_logout: true
-  });
-  
-  const [dataSettings, setDataSettings] = useState<DataSettings>({
-    auto_backup: true,
-    last_backup: new Date().toISOString()
   });
 
   const getAuthToken = () => localStorage.getItem("token");
@@ -147,11 +125,6 @@ const Settings = () => {
         });
         
         setNotifications(data.notifications);
-        setSecurity(data.security);
-        setDataSettings({
-          auto_backup: data.data_management.auto_backup,
-          last_backup: data.data_management.last_backup
-        });
       }
     } catch (error: any) {
       console.error("Error fetching settings:", error);
@@ -218,77 +191,6 @@ const Settings = () => {
     }
   };
 
-  const handleSecurityToggle = async (key: keyof SecuritySettings) => {
-    const newSecurity = { ...security, [key]: !security[key] };
-    setSecurity(newSecurity);
-    
-    try {
-      const token = getAuthToken();
-      const response = await axios.put(
-        `${API_URL}/settings/security`,
-        newSecurity,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      if (response.data.success) {
-        toast.success("Security settings updated");
-      }
-    } catch (error: any) {
-      toast.error("Failed to update security settings");
-      setSecurity(security);
-    }
-  };
-
-  const handleDataToggle = async () => {
-    const newSettings = { ...dataSettings, auto_backup: !dataSettings.auto_backup };
-    setDataSettings(newSettings);
-    
-    try {
-      const token = getAuthToken();
-      const response = await axios.put(
-        `${API_URL}/settings/data-management`,
-        { auto_backup: newSettings.auto_backup },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      if (response.data.success) {
-        toast.success("Data settings updated");
-      }
-    } catch (error: any) {
-      toast.error("Failed to update data settings");
-      setDataSettings(dataSettings);
-    }
-  };
-
-  const handleBackupNow = async () => {
-    try {
-      const token = getAuthToken();
-      const response = await axios.post(
-        `${API_URL}/settings/backup`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      if (response.data.success) {
-        setDataSettings(prev => ({ ...prev, last_backup: response.data.data.last_backup }));
-        toast.success("Backup completed successfully");
-      }
-    } catch (error: any) {
-      toast.error("Failed to create backup");
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   const isAdmin = currentUserRole === "admin";
 
   return (
@@ -353,7 +255,7 @@ const Settings = () => {
                                 <SelectContent>
                                   <SelectItem value="admin">
                                     <div className="flex items-center gap-2">
-                                      <Shield className="h-4 w-4 text-primary" />
+                                      <Users className="h-4 w-4 text-primary" />
                                       Admin
                                     </div>
                                   </SelectItem>
@@ -363,16 +265,16 @@ const Settings = () => {
                                       Accountant
                                     </div>
                                   </SelectItem>
-                                  <SelectItem value="teacher">
-                                    <div className="flex items-center gap-2">
-                                      <Users className="h-4 w-4 text-blue-500" />
-                                      Teacher
-                                    </div>
-                                  </SelectItem>
                                   <SelectItem value="principal">
                                     <div className="flex items-center gap-2">
                                       <Users className="h-4 w-4 text-purple-500" />
                                       Principal
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value="teacher">
+                                    <div className="flex items-center gap-2">
+                                      <Users className="h-4 w-4 text-blue-500" />
+                                      Teacher
                                     </div>
                                   </SelectItem>
                                 </SelectContent>
@@ -517,97 +419,6 @@ const Settings = () => {
                   disabled={!isAdmin}
                 />
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-warning/10 rounded-lg">
-                  <Shield className="h-5 w-5 text-warning" />
-                </div>
-                <div>
-                  <CardTitle>Security</CardTitle>
-                  <CardDescription>Manage access & permissions</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Two-Factor Authentication</p>
-                  <p className="text-sm text-muted-foreground">Add extra security layer</p>
-                </div>
-                <Switch 
-                  checked={security.two_factor_auth}
-                  onCheckedChange={() => handleSecurityToggle('two_factor_auth')}
-                  disabled={!isAdmin}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Audit Logging</p>
-                  <p className="text-sm text-muted-foreground">Track all system changes</p>
-                </div>
-                <Switch 
-                  checked={security.audit_logging}
-                  onCheckedChange={() => handleSecurityToggle('audit_logging')}
-                  disabled={!isAdmin}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Auto Logout</p>
-                  <p className="text-sm text-muted-foreground">After 30 min inactivity</p>
-                </div>
-                <Switch 
-                  checked={security.auto_logout}
-                  onCheckedChange={() => handleSecurityToggle('auto_logout')}
-                  disabled={!isAdmin}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-destructive/10 rounded-lg">
-                  <HardDrive className="h-5 w-5 text-destructive" />
-                </div>
-                <div>
-                  <CardTitle>Data Management</CardTitle>
-                  <CardDescription>Backup & data operations</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Auto Backup</p>
-                  <p className="text-sm text-muted-foreground">Daily database backup</p>
-                </div>
-                <Switch 
-                  checked={dataSettings.auto_backup}
-                  onCheckedChange={handleDataToggle}
-                  disabled={!isAdmin}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Last Backup</Label>
-                <p className="text-sm text-muted-foreground">{formatDate(dataSettings.last_backup)}</p>
-              </div>
-              {isAdmin && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Button variant="outline" onClick={handleBackupNow}>Backup Now</Button>
-                    <Button variant="outline">Restore Data</Button>
-                  </div>
-                  <Button variant="destructive" className="w-full">
-                    Export All Data
-                  </Button>
-                </>
-              )}
             </CardContent>
           </Card>
         </div>

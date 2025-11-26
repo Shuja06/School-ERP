@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileText, TrendingUp, DollarSign, Users, TrendingDown } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Download, FileText, TrendingUp, DollarSign, Users, TrendingDown, X } from "lucide-react";
 import { useState } from "react";
 import { useDashboardReport, useFeeCollectionReport, useOutstandingDuesReport, useExpenseReport, usePayrollReport, useIncomeExpenseReport } from "@/hooks/useReports";
 import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
 
 const Reports = () => {
   const { data: dashboardData, isLoading: dashboardLoading } = useDashboardReport();
@@ -17,6 +17,9 @@ const Reports = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [currentReportData, setCurrentReportData] = useState<any>(null);
+  const [currentReportTitle, setCurrentReportTitle] = useState("");
 
   // Fetch different report types based on selection
   const { data: feeCollectionData } = useFeeCollectionReport(startDate, endDate);
@@ -24,6 +27,13 @@ const Reports = () => {
   const { data: expenseData } = useExpenseReport(startDate, endDate);
   const { data: payrollData } = usePayrollReport(selectedMonth);
   const { data: incomeExpenseData } = useIncomeExpenseReport(startDate, endDate);
+
+  const handleViewReport = (title: string, data: any, type: string) => {
+    setCurrentReportTitle(title);
+    setCurrentReportData(data);
+    setReportType(type);
+    setIsDialogOpen(true);
+  };
 
   const handleDownloadReport = () => {
     let data: any = null;
@@ -88,27 +98,126 @@ const Reports = () => {
     XLSX.writeFile(wb, `${filename}${dateStr}.xlsx`);
   };
 
-  const handleDownloadPDF = (reportTitle: string) => {
-    const doc = new jsPDF();
-    
-    doc.setFontSize(20);
-    doc.setFont("helvetica", "bold");
-    doc.text(reportTitle, 105, 20, { align: "center" });
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text("SCHOOL ERP SYSTEM", 105, 28, { align: "center" });
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 105, 34, { align: "center" });
-    
-    doc.setLineWidth(0.5);
-    doc.line(20, 40, 190, 40);
-    
-    doc.setFontSize(11);
-    doc.text("Report generation in progress...", 20, 50);
-    doc.text("Full report data will be displayed here.", 20, 58);
-    
-    const fileName = `${reportTitle.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-    doc.save(fileName);
+  const renderReportContent = () => {
+    if (!currentReportData) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground mb-2">No data available</p>
+          <p className="text-sm text-muted-foreground">
+            {reportType === 'fee-collection' || reportType === 'expenses' || reportType === 'income-expense'
+              ? 'Please select a date range in the Custom Report Generator below and generate the report.'
+              : reportType === 'payroll'
+              ? 'Please select a month in the Custom Report Generator below and generate the report.'
+              : 'Please generate a report to view data.'}
+          </p>
+        </div>
+      );
+    }
+
+    const formatValue = (key: string, value: any) => {
+      const lowerKey = key.toLowerCase();
+      
+      // List of fields that should be shown as counts (not currency)
+      const countFields = [
+        'student',
+        'staff',
+        'transaction',
+        'count',
+        'paid', // when it's status count, not amount
+        'pending' // when it's status count, not amount
+      ];
+      
+      // Check if this is a count field
+      const isCountField = countFields.some(field => lowerKey.includes(field));
+      
+      // Special case: if it contains 'total' or 'paid' or 'pending' AND it's a small number (< 100), 
+      // it's likely a count, not an amount
+      if (typeof value === 'number' && value < 100 && 
+          (lowerKey.includes('total') || lowerKey === 'paid' || lowerKey === 'pending')) {
+        // Check if it's likely a count (transactions, students, staff, etc.)
+        if (isCountField) {
+          return value;
+        }
+      }
+      
+      // Check if it explicitly mentions amount, payroll, collection, expense, salary, fee
+      const isMoneyField = lowerKey.includes('amount') || 
+                          lowerKey.includes('payroll') || 
+                          lowerKey.includes('collection') || 
+                          lowerKey.includes('expense') || 
+                          lowerKey.includes('salary') ||
+                          lowerKey.includes('fee') ||
+                          lowerKey.includes('revenue') ||
+                          lowerKey.includes('income');
+      
+      // If it's explicitly a money field or a large number, format as currency
+      if (isMoneyField || (typeof value === 'number' && value >= 100)) {
+        return typeof value === 'number' ? `₹${value.toLocaleString()}` : value;
+      }
+      
+      // For counts and small numbers that are not explicitly money
+      if (isCountField) {
+        return value;
+      }
+      
+      // Default: format as currency for numbers
+      return typeof value === 'number' ? `₹${value.toLocaleString()}` : value;
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Summary Section */}
+        <div className="space-y-3">
+          <h3 className="font-semibold text-lg">Summary</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {Object.entries(currentReportData)
+              .filter(([key]) => !key.includes('Breakdown') && !Array.isArray(currentReportData[key]))
+              .map(([key, value]) => (
+                <div key={key} className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    {key.replace(/([A-Z])/g, ' $1').trim()}
+                  </p>
+                  <p className="text-xl font-semibold">
+                    {formatValue(key, value)}
+                  </p>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        {/* Breakdown Sections */}
+        {Object.entries(currentReportData).map(([key, value]) => {
+          if (key.includes('Breakdown') && typeof value === 'object' && !Array.isArray(value)) {
+            return (
+              <div key={key} className="space-y-3">
+                <h3 className="font-semibold text-lg">{key.replace('Breakdown', ' Breakdown')}</h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="text-left p-3 font-medium">Category</th>
+                        <th className="text-right p-3 font-medium">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(value).map(([k, v]) => (
+                        <tr key={k} className="border-t">
+                          <td className="p-3">{k}</td>
+                          <td className="p-3 text-right font-medium">
+                            {typeof v === 'number' ? `₹${v.toLocaleString()}` : String(v)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })}
+      </div>
+    );
   };
 
   if (dashboardLoading) {
@@ -258,7 +367,7 @@ const Reports = () => {
                   <Button 
                     variant="outline" 
                     className="flex-1"
-                    onClick={() => handleDownloadPDF(report.title)}
+                    onClick={() => handleViewReport(report.title, report.data, report.reportType)}
                   >
                     <FileText className="mr-2 h-4 w-4" />
                     View Report
@@ -388,6 +497,40 @@ const Reports = () => {
           </Card>
         </div>
       </div>
+
+      {/* Report View Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">{currentReportTitle}</DialogTitle>
+            <DialogDescription>
+              Detailed report view - {new Date().toLocaleDateString()}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            {renderReportContent()}
+          </div>
+          <div className="flex gap-2 mt-6">
+            <Button 
+              variant="outline" 
+              className="flex-1"
+              onClick={() => setIsDialogOpen(false)}
+            >
+              Close
+            </Button>
+            <Button 
+              className="flex-1"
+              onClick={() => {
+                handleDownloadReport();
+                setIsDialogOpen(false);
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download Excel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

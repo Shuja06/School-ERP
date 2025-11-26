@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search, Edit, Trash2, GraduationCap, BookOpen, UserPlus } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent } from "@/hooks/useStudents";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useState, useMemo } from "react";
@@ -12,6 +13,7 @@ import { toast } from "sonner";
 
 const Students = () => {
   const { data: students = [], isLoading } = useStudents();
+  const { permissions, loading: permissionsLoading } = usePermissions();
   const createStudent = useCreateStudent();
   const updateStudent = useUpdateStudent();
   const deleteStudent = useDeleteStudent();
@@ -30,12 +32,10 @@ const Students = () => {
     admission_date: new Date().toISOString().split('T')[0]
   });
 
-  // Calculate statistics
   const stats = useMemo(() => {
     const totalStudents = students.length;
     const uniqueClasses = new Set(students.map(s => s.class)).size;
     
-    // Students admitted this month
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -75,6 +75,16 @@ const Students = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (editingStudent && !permissions.canEditStudents) {
+      toast.error("You don't have permission to edit students");
+      return;
+    }
+    
+    if (!editingStudent && !permissions.canAddStudents) {
+      toast.error("You don't have permission to add students");
+      return;
+    }
+    
     try {
       if (editingStudent) {
         await updateStudent.mutateAsync({ id: editingStudent.id, updates: formData });
@@ -90,6 +100,11 @@ const Students = () => {
   };
 
   const handleEdit = (student: any) => {
+    if (!permissions.canEditStudents) {
+      toast.error("You don't have permission to edit students");
+      return;
+    }
+    
     setEditingStudent(student);
     setFormData({
       student_id: student.student_id,
@@ -104,15 +119,33 @@ const Students = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!permissions.canDeleteStudents) {
+      toast.error("You don't have permission to delete students");
+      return;
+    }
+    
     if (!confirm('Are you sure you want to delete this student?')) return;
     await deleteStudent.mutateAsync(id);
   };
 
-  if (isLoading) {
+  if (isLoading || permissionsLoading) {
     return (
       <DashboardLayout>
         <div className="flex h-screen items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!permissions.canViewStudents) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-screen items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+            <p className="text-muted-foreground">You don't have permission to view students</p>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -127,92 +160,94 @@ const Students = () => {
             <h1 className="text-3xl font-bold">Student Management</h1>
             <p className="text-muted-foreground">Manage student records and information</p>
           </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Student
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>{editingStudent ? 'Edit Student' : 'Add New Student'}</DialogTitle>
-                <DialogDescription>Fill in the student details below.</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="student_id">Student ID</Label>
-                  <Input
-                    id="student_id"
-                    placeholder="e.g., STU001"
-                    value={formData.student_id}
-                    onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="full_name">Full Name</Label>
-                  <Input
-                    id="full_name"
-                    placeholder="John Doe"
-                    value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="class">Class</Label>
-                  <Input
-                    id="class"
-                    placeholder="e.g., 10"
-                    value={formData.class}
-                    onChange={(e) => setFormData({ ...formData, class: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="section">Section</Label>
-                  <Input
-                    id="section"
-                    placeholder="e.g., A"
-                    value={formData.section}
-                    onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="parent_name">Parent Name</Label>
-                  <Input
-                    id="parent_name"
-                    placeholder="Jane Doe"
-                    value={formData.parent_name}
-                    onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="parent_contact">Parent Contact</Label>
-                  <Input
-                    id="parent_contact"
-                    placeholder="+1 (555) 123-4567"
-                    value={formData.parent_contact}
-                    onChange={(e) => setFormData({ ...formData, parent_contact: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="admission_date">Admission Date</Label>
-                  <Input
-                    id="admission_date"
-                    type="date"
-                    value={formData.admission_date}
-                    onChange={(e) => setFormData({ ...formData, admission_date: e.target.value })}
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={createStudent.isPending || updateStudent.isPending}>
-                  {createStudent.isPending || updateStudent.isPending ? 'Saving...' : editingStudent ? 'Update Student' : 'Add Student'}
+          {permissions.canAddStudents && (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Student
                 </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{editingStudent ? 'Edit Student' : 'Add New Student'}</DialogTitle>
+                  <DialogDescription>Fill in the student details below.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="student_id">Student ID</Label>
+                    <Input
+                      id="student_id"
+                      placeholder="e.g., STU001"
+                      value={formData.student_id}
+                      onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="full_name">Full Name</Label>
+                    <Input
+                      id="full_name"
+                      placeholder="John Doe"
+                      value={formData.full_name}
+                      onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="class">Class</Label>
+                    <Input
+                      id="class"
+                      placeholder="e.g., 10"
+                      value={formData.class}
+                      onChange={(e) => setFormData({ ...formData, class: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="section">Section</Label>
+                    <Input
+                      id="section"
+                      placeholder="e.g., A"
+                      value={formData.section}
+                      onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="parent_name">Parent Name</Label>
+                    <Input
+                      id="parent_name"
+                      placeholder="Jane Doe"
+                      value={formData.parent_name}
+                      onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="parent_contact">Parent Contact</Label>
+                    <Input
+                      id="parent_contact"
+                      placeholder="+1 (555) 123-4567"
+                      value={formData.parent_contact}
+                      onChange={(e) => setFormData({ ...formData, parent_contact: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="admission_date">Admission Date</Label>
+                    <Input
+                      id="admission_date"
+                      type="date"
+                      value={formData.admission_date}
+                      onChange={(e) => setFormData({ ...formData, admission_date: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={createStudent.isPending || updateStudent.isPending}>
+                    {createStudent.isPending || updateStudent.isPending ? 'Saving...' : editingStudent ? 'Update Student' : 'Add Student'}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -220,7 +255,7 @@ const Students = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-lg font-medium">Total Students</CardTitle>
-              <GraduationCap className="h- w-4 text-muted-foreground" />
+              <GraduationCap className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-5xl font-bold text-blue-600">{stats.totalStudents}</div>
@@ -281,7 +316,9 @@ const Students = () => {
                   <TableHead>Parent Name</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Admission Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  {(permissions.canEditStudents || permissions.canDeleteStudents) && (
+                    <TableHead className="text-right">Actions</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -297,16 +334,22 @@ const Students = () => {
                       <TableCell>
                         {new Date(student.admission_date || student.created_at).toLocaleDateString()}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-2 justify-end">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(student)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(student.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      {(permissions.canEditStudents || permissions.canDeleteStudents) && (
+                        <TableCell className="text-right">
+                          <div className="flex gap-2 justify-end">
+                            {permissions.canEditStudents && (
+                              <Button variant="ghost" size="icon" onClick={() => handleEdit(student)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {permissions.canDeleteStudents && (
+                              <Button variant="ghost" size="icon" onClick={() => handleDelete(student.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 ) : (
