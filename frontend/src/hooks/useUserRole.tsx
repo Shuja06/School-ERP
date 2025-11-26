@@ -1,31 +1,31 @@
+// src/hooks/useUserRole.tsx - REPLACE ENTIRE FILE
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "./useAuth";
+import axios from "axios";
 
-export type UserRole = "admin" | "accountant" | "teacher" | null;
+const API_URL = "http://localhost:5000/api/v1";
+
+export type UserRole = "admin" | "accountant" | "teacher" | "principal" | null;
 
 export const useUserRole = () => {
-  const { user } = useAuth();
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserRole = async () => {
-      if (!user) {
-        setRole(null);
-        setLoading(false);
-        return;
-      }
-
       try {
-        const { data, error } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setLoading(false);
+          return;
+        }
 
-        if (error) throw error;
-        setRole(data?.role as UserRole || null);
+        const response = await axios.get(`${API_URL}/users/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (response.data.success) {
+          setRole(response.data.data.role);
+        }
       } catch (error) {
         console.error("Error fetching user role:", error);
         setRole(null);
@@ -35,7 +35,7 @@ export const useUserRole = () => {
     };
 
     fetchUserRole();
-  }, [user]);
+  }, []);
 
   return { role, loading };
 };
